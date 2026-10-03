@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TG 文件离线下载</title>
+<style>
+:root{--bg:#16181d;--card:#1f232c;--line:#2e3442;--txt:#e8eaf0;--mut:#9aa3b2;--acc:#4da3ff;--ok:#3ecf6f;--warn:#ffb224;--err:#ff5d5d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
+.wrap{max-width:980px;margin:0 auto;padding:20px 14px 60px}
+h2{margin:6px 0 16px;font-size:20px}
+h3{margin:0 0 12px;font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.row:last-child{margin-bottom:0}
+label{color:var(--mut)}
+input[type=text],input[type=number],input[type=password],select{background:#14171d;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px;min-width:0}
+input[type=text]{width:220px}input[type=number]{width:110px}select{max-width:280px}
+button{background:var(--acc);border:0;color:#fff;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+button:hover{filter:brightness(1.1)}
+button.ghost{background:#2c3340}
+button.danger{background:#3a2b2e;color:var(--err)}
+button.small{padding:5px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:default}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin-left:8px}
+.b-ok{background:rgba(62,207,111,.15);color:var(--ok)}
+.b-warn{background:rgba(255,178,36,.15);color:var(--warn)}
+.b-err{background:rgba(255,93,93,.15);color:var(--err)}
+.b-mut{background:#2c3340;color:var(--mut)}
+.types{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin:6px 0}
+.types label{display:flex;align-items:center;gap:6px;background:#14171d;border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--txt);cursor:pointer;font-size:13px}
+.job{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#1a1e25}
+.job .title{font-weight:600;margin-bottom:6px}
+.job .meta{color:var(--mut);font-size:12px;margin-bottom:8px}
+.bar{height:8px;background:#14171d;border-radius:4px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;background:var(--acc);border-radius:4px;transition:width .5s}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0}
+.stats b{color:var(--txt)}
+.ops{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.hint{color:var(--mut);font-size:12px}
+.err{color:var(--err);font-size:12px}
+.ok{color:var(--ok);font-size:12px}
+.hidden{display:none}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>📥 TG 文件离线下载 <span id="tgBadge"></span>
+  <span style="float:right;font-size:13px;font-weight:normal;display:flex;gap:6px;align-items:center">
+    <select id="accSelect" onchange="switchAccount(this.value)" title="切换 Telegram 账号" style="max-width:200px"></select>
+    <button class="ghost small" onclick="saveCurAccount()" title="把当前登录的账号保存到列表">＋保存</button>
+    <button class="ghost small" onclick="delAccount()" title="删除选中的账号">删</button>
+  </span></h2>
+
+  <div class="card">
+    <h3>⚙️ 设置与 Telegram 登录</h3>
+    <div class="row">
+      <label>api_id</label><input type="password" id="apiId" placeholder="数字" style="width:160px">
+      <button class="ghost small" onclick="togglePw('apiId',this)" title="显示/隐藏">👁️</button>
+      <label>api_hash</label><input type="password" id="apiHash" placeholder="32位字符串" style="width:160px">
+      <button class="ghost small" onclick="togglePw('apiHash',this)" title="显示/隐藏">👁️</button>
+      <button class="ghost" onclick="saveSettings()">保存</button>
+      <span id="setMsg" class="hint"></span>
+    </div>
+    <hr>
+    <div id="loginBox">
+      <div class="row">
+        <label>手机号</label><input type="password" id="phone" placeholder="+86 13800000000" style="width:160px">
+        <button class="ghost small" onclick="togglePw('phone',this)" title="显示/隐藏">👁️</button>
+        <button class="ghost" onclick="sendCode()">发送验证码</button>
+      </div>
+      <div class="row hidden" id="codeRow">
+        <label>验证码</label><input type="text" id="code" placeholder="Telegram 收到的5位数字" style="width:180px">
+        <label class="hidden" id="pwLabel">两步验证密码</label><input type="password" id="tgPass" class="hidden" style="width:160px">
+        <button onclick="doLogin()">登录</button>
+      </div>
+      <div class="row"><span id="loginMsg" class="hint"></span><button class="ghost small hidden" id="logoutBtn" onclick="doLogout()">退出登录</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📥 Telegram 文件离线下载</h3>
+    <div class="row">
+      <input type="text" id="dlUrl" placeholder="粘贴 t.me 文件链接，如 https://t.me/频道名/123" style="width:340px">
+      <button onclick="createDl()">开始下载</button>
+      <span id="dlMsg" class="hint"></span>
+    </div>
+    <div class="hint">链接贴进来，服务器就用你的 TG 账号把文件下好，下完点"💾"按钮拖下来。如果是相册合集（九宫格那种），会把整组图片视频一起下下来，每个文件一个下载按钮。大文件慢慢下，别一次刷太多，小心限流。</div>
+    <div id="dls" style="margin-top:10px"><span class="hint">暂无下载</span></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+async function api(path,method,body){
+  const r=await fetch(path,{method:method||"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined});
+  const t=await r.text();let j;try{j=JSON.parse(t)}catch(e){j={error:t}}
+  if(!r.ok)throw new Error(j.error||j.detail||("HTTP "+r.status));
+  return j;
+}
+
+function fmtT(t){if(!t)return"";const d=new Date(t*1000);return d.toLocaleString("zh-CN",{hour12:false})}
+
+// ---- 设置 ----
+function togglePw(id,btn){
+  const el=$(id);
+  if(el.type==="password"){el.type="text";btn.textContent="🙈"}
+  else{el.type="password";btn.textContent="👁️"}
+}
+async function loadSettings(){
+  try{const s=await api("/api/settings");
+    $("apiId").value=s.api_id||"";
+    $("apiHash").value=s.api_hash||"";
+    $("setMsg").textContent=s.api_hash_set?"api_hash 已保存":"";}
+  catch(e){}
+}
+async function saveSettings(){
+  try{await api("/api/settings","POST",{api_id:$("apiId").value,api_hash:$("apiHash").value});
+    $("setMsg").textContent="已保存";$("setMsg").className="ok";refreshAuth();
+  }catch(e){$("setMsg").textContent=e.message;$("setMsg").className="err"}
+}
+
+// ---- 登录 ----
+async function refreshAuth(){
+  try{
+    const s=await api("/api/auth/status");
+    if(!s.configured){$("tgBadge").innerHTML='<span class="badge b-warn">未配置api</span>';return}
+    if(s.logged_in){
+      const me=s.me||{};
+      $("tgBadge").innerHTML='<span class="badge b-ok">已登录 '+(me.name||me.username||"")+'</span>';
+      $("loginMsg").innerHTML='<span class="ok">当前账号: '+(me.name||"")+(me.username?" (@"+me.username+")":"")+'</span>';
+      $("logoutBtn").classList.remove("hidden");
+      if(me.phone && !$("phone").value)$("phone").value=me.phone;
+      loadAccounts();
+    }else{
+      $("tgBadge").innerHTML='<span class="badge b-mut">未登录</span>';
+      $("loginMsg").textContent="";$("logoutBtn").classList.add("hidden");
+    }
+  }catch(e){}
+}
+async function loadAccounts(){
+  try{
+    const r=await api("/api/accounts");
+    const sel=$("accSelect"), cur=sel.value;
+    sel.innerHTML="";
+    r.accounts.forEach(a=>{
+      const label=(a.name||a.username||a.phone||a.id).slice(0,18);
+      const opt=document.createElement("option");
+      opt.value=a.id;
+      opt.textContent="👤 "+label+(a.id===r.active_id?" ✓":"");
+      if(a.id===r.active_id)opt.selected=true;
+      sel.appendChild(opt);
+    });
+    const opt=document.createElement("option");
+    opt.value="__new__"; opt.textContent="＋ 添加新账号";
+    sel.appendChild(opt);
+    if(cur==="__new__")sel.value="__new__";
+  }catch(e){}
+}
+async function switchAccount(v){
+  if(v==="__new__"){
+    try{await api("/api/accounts/new","POST",{});
+      $("loginMsg").innerHTML='<span class="hint">已创建新账号槽位，请在下方填写手机号登录</span>';
+    }catch(e){alert(e.message)}
+    loadAccounts();refreshAuth();return;
+  }
+  if(!v)return;
+  try{await api(`/api/accounts/${v}/activate`,"POST",{});}catch(e){alert(e.message)}
+  loadAccounts();refreshAuth();
+}
+async function saveCurAccount(){
+  try{
+    const r=await api("/api/accounts/save-current","POST",{});
+    loadAccounts();refreshAuth();
+  }catch(e){alert(e.message)}
+}
+async function delAccount(){
+  const sel=$("accSelect"), v=sel.value;
+  if(!v||v==="__new__"){alert("请先在下拉框选中要删除的账号");return}
+  if(!confirm("删除这个账号的登录信息？（服务器上的 session 会被清除）"))return;
+  try{await api(`/api/accounts/${v}`,"DELETE");}catch(e){alert(e.message)}
+  loadAccounts();refreshAuth();
+}
+async function sendCode(){
+  try{$("loginMsg").textContent="发送中…";
+    await api("/api/auth/send-code","POST",{phone:$("phone").value});
+    $("codeRow").classList.remove("hidden");$("loginMsg").textContent="验证码已发送，请查收 Telegram";
+  }catch(e){$("loginMsg").textContent=e.message;$("loginMsg").className="err"}
+}
+async function doLogin(){
+  try{$("loginMsg").textContent="登录中…";
+    const r=await api("/api/auth/verify","POST",{phone:$("phone").value,code:$("code").value,password:$("tgPass").value});
+    if(r.need_password){$("pwLabel").classList.remove("hidden");$("tgPass").classList.remove("hidden");
+      $("loginMsg").textContent="该账号开启了两步验证，请输入密码";return}
+    $("loginMsg").innerHTML='<span class="ok">登录成功</span>';$("codeRow").classList.add("hidden");
+    refreshAuth();
+  }catch(e){$("loginMsg").textContent=e.message;$("loginMsg").className="err"}
+}
+async function doLogout(){
+  try{await api("/api/auth/logout","POST",{});$("codeRow").classList.add("hidden");refreshAuth()}catch(e){}
+}
+
+// ---- 离线下载 ----
+async function createDl(){
+  const u=$("dlUrl").value.trim();
+  if(!u){$("dlMsg").textContent="请先粘贴 t.me 链接";$("dlMsg").className="err";return}
+  try{$("dlMsg").textContent="开始下载…";$("dlMsg").className="hint";
+    await api("/api/downloads","POST",{url:u});
+    $("dlUrl").value="";$("dlMsg").textContent="";pollDls();
+  }catch(e){$("dlMsg").textContent=e.message;$("dlMsg").className="err"}
+}
+const DLSTATUS={queued:["b-mut","排队中"],downloading:["b-warn","下载中"],done:["b-ok","已完成"],failed:["b-err","失败"],stopped:["b-mut","已中断"]};
+function fmtSize(b){if(b==null)return"";const u=["B","KB","MB","GB"];let i=0;while(b>=1024&&i<3){b/=1024;i++}return b.toFixed(b>=100?0:1)+" "+u[i]}
+function dlCard(d){
+  const[cls,txt]=DLSTATUS[d.status]||["b-mut",d.status];
+  const pct=d.total>0?Math.min(100,Math.round(d.downloaded/d.total*100)):0;
+  const sizeStr=d.size?` · ${fmtSize(d.size)}`:"";
+  const files=(d.files&&d.files.length)?d.files:(d.file?[{file:d.file,disp_name:d.disp_name,size:d.size}]:[]);
+  let ops="";
+  if(d.status==="done"&&files.length)ops+=files.map((f,i)=>`<a href="/api/downloads/${d.id}/files/${i}" style="text-decoration:none"><button class="small">💾 ${f.disp_name||("文件"+(i+1))}</button></a>`).join("");
+  if(d.status!=="downloading")ops+=`<button class="ghost small" onclick="delDl('${d.id}')">删除</button>`;
+  return `<div class="job">
+    <div class="title">${d.disp_name||d.url} <span class="badge ${cls}">${txt}</span></div>
+    <div class="meta">${d.chat_title?d.chat_title+" · ":""}${fmtT(d.created_at)}${sizeStr}</div>
+    ${d.url?`<div class="meta">🔗 <span style="user-select:all;word-break:break-all">${d.url}</span></div>`:""}
+    ${d.status==="downloading"?`<div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="meta">⏳ ${d.stage||"下载中…"} · ${fmtSize(d.downloaded)} / ${d.total?fmtSize(d.total):"?"}${d.speed>0?` · ⚡${fmtSize(d.speed)}/s`:""}</div>`:""}
+    ${d.status==="queued"?`<div class="meta">⏳ ${d.stage||"排队中…"}</div>`:""}
+    ${d.server_path?`<div class="meta">📁 服务器存放路径：${d.server_path}</div>`:""}
+    ${d.error?`<div class="err">${d.error}</div>`:""}
+    <div class="ops">${ops}</div></div>`;
+}
+async function pollDls(){
+  try{const list=await api("/api/downloads");
+    $("dls").innerHTML=list.length?list.map(dlCard).join(""):'<span class="hint">暂无下载</span>';
+  }catch(e){}
+}
+async function delDl(id){
+  if(!confirm("删除这条下载记录（含服务器上的文件）？"))return;
+  try{await api(`/api/downloads/${id}`,"DELETE");pollDls()}catch(e){alert(e.message)}
+}
+
+loadSettings();refreshAuth();loadAccounts();pollDls();setInterval(pollDls,2000);
+</script>
+</body>
+</html>
