@@ -1,5 +1,10 @@
 # TG 文件离线下载
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)
+![Telethon](https://img.shields.io/badge/Telethon-1.36+-orange.svg)
+
 Telegram 文件离线下载 Web 面板：粘贴 t.me 链接，服务器用已登录的 Telegram 账号把文件下载到本地，再通过浏览器取回。适合收藏频道文件、批量备份相册合集。
 
 ## 功能
