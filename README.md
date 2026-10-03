@@ -164,6 +164,31 @@ sudo certbot --nginx -d tg.example.com
 - 📁 服务器存放路径
 - 🔗 当初粘贴的 Telegram 原链接（纯文本，点击可全选复制，方便以后重下）
 
+## 搭配 OpenList 使用（推荐）
+
+如果你跟我一样用甲骨文云（Oracle Cloud）服务器，强烈建议再装一个 [OpenList](https://github.com/OpenListTeam/OpenList)，把下载目录挂进去，文件管理体验直接起飞：
+
+**分工**：TG 面板负责「下」，OpenList 负责「管」。
+
+**怎么接**（3 步）：
+
+1. 在同一台服务器上部署 OpenList（参考[官方文档](https://doc.oplist.org)）
+2. 进 OpenList 后台 →「存储」→ 添加 → 驱动选「本地存储」
+   - 挂载路径填本项目的下载目录绝对路径，例如 `/home/ubuntu/tg-file-downloader/data/downloads/`
+   - 挂载后 OpenList 里会出现这个文件夹，下好的文件自动同步显示
+3. 完事。不用改 TG 面板任何配置。
+
+**这样做的好处**：
+
+- 📱 **网页直接管理**：手机/电脑浏览器打开 OpenList，在线预览、重命名、删除、打包下载，不用 SSH 爬目录
+- ☁️ **转存到网盘**：先在 OpenList 里挂载 123 云盘 / 阿里云盘 / 天翼云盘等，然后用 OpenList 的复制/离线下载功能，把 TG 下好的文件一键转存到网盘
+- 💾 **下到本地**：在 OpenList 里点文件直接下载，或生成分享/外链发给朋友
+- 🔌 **WebDAV 随时随地用**：OpenList 自带 WebDAV 服务（默认 `http://服务器IP:5244/dav`，用 OpenList 账号登录）
+  - 在 **Infuse / nPlayer** 里添加 WebDAV，直接在手机、平板、电视上在线播这些视频
+  - 在 **ES 文件浏览器 / MT 管理器 / RaiDrive / Alist Helper** 等任何支持 WebDAV 的软件里填入地址，就能像本地文件夹一样管理服务器上的文件
+
+一句话：文件下到 Oracle 服务器 → OpenList 接管 → 网页管、网盘存、WebDAV 播，全场景打通。
+
 ## 常见问题
 
 **Q: 下载速度慢？**
